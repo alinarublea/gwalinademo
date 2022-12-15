@@ -9,7 +9,7 @@
  * OF ANY KIND, either express or implied. See the License for the specific language
  * governing permissions and limitations under the License.
  */
-
+/* eslint-disable */
 const aesServiceUrl = 'https://webpage-aesthetics-ns-team-xpsuccess-sandbox.corp.ethos13-stage-va7.ethos.adobe.net/aesthetics/predict?apiKey=xpsucc3ss&url=';
 const defaultHost ='https://main--gw22-aesthetics-scoring-franklin--chicharr.hlx.page';
 
@@ -43,51 +43,91 @@ const defaultHost ='https://main--gw22-aesthetics-scoring-franklin--chicharr.hlx
   }
 }
 
-
 function createScoreElement(previewScore, liveScore) {  
-  const div = document.createElement('div');
-  const tab = document.createElement('table');
-  
+  const div = document.createElement('div');  
+  const tabMetrics = document.createElement('table');  
+
   div.className = 'hlx-variant';  
-  tab.className = 'table_score';
-  div.appendChild(tab);
-  const previewScoreObject = new Map();
-  const liveScoreObject = new Map();
+  tabMetrics.className = 'table_score';  
+  div.appendChild(tabMetrics);
+  
+  const previewScoreMap = new Map();
+  const liveScoreMap = new Map();
+  
   previewScore.aesthetics_scores.forEach((entry) => {
     const fname = entry.feature_name.replaceAll("_"," ");
     const fvalue = parseFloat(entry.feature_value).toFixed(2);
-    previewScoreObject.set(fname,fvalue);    
+    previewScoreMap.set(fname,fvalue);    
   });
-  
+   
   if (liveScore) {
     liveScore.aesthetics_scores.forEach((entry) => {
       const fname = entry.feature_name.replaceAll("_"," ");
       const fvalue = parseFloat(entry.feature_value).toFixed(2);
-      liveScoreObject.set(fname,fvalue);    
+      liveScoreMap.set(fname,fvalue);    
     });
   }
-  let tableContents = createScoreTableHeader(previewScore, liveScore);
+  let tableMetricsContents = createTableHeader('Metric',previewScore, liveScore);
   
-  for (const metric of previewScoreObject) {
+  for (const metric of previewScoreMap) {
     const metricName = metric[0];
     const previewValue = metric[1];
-    const liveValue = liveScoreObject ? liveScoreObject.get(metricName) : '';
-    tableContents = tableContents.concat(createScoreTableRow(metricName, previewValue, liveValue));
+    const liveValue = liveScoreMap ? liveScoreMap.get(metricName) : '';
+    tableMetricsContents = tableMetricsContents.concat(createScoreTableRow(metricName, previewValue, liveValue));
   }
 
-  tab.innerHTML = tableContents;
+  tabMetrics.innerHTML = tableMetricsContents;
+  return (div);  
+}
+
+
+function createKpiElement(previewScore, liveScore) {  
+  const div = document.createElement('div');  
+  const tabKpis = document.createElement('table');
+
+  div.className = 'hlx-variant';  
+  tabKpis.className = 'table_score';
+
+  div.appendChild(tabKpis);
+
+  const previewKpiMap = new Map();
+  const liveKpiMap = new Map();
+ 
+  previewScore.kpi_prediction.forEach((entry) => {
+    const fname = entry.kpi_name.replaceAll("_"," ");
+    const fvalue = parseFloat(entry.kpi_value).toFixed(2);
+    previewKpiMap.set(fname,fvalue);    
+  });
+  
+  if (liveScore) {
+    liveScore.kpi_prediction.forEach((entry) => {
+      const fname = entry.kpi_name.replaceAll("_"," ");
+      const fvalue = parseFloat(entry.kpi_value).toFixed(2);
+      liveKpiMap.set(fname,fvalue);    
+    });    
+  }
+
+  let tableKpiContents = createTableHeader('KPI', previewScore, liveScore);
+  for (const kpi of previewKpiMap) {
+    const metricName = kpi[0];
+    const previewValue = kpi[1];
+    const liveValue = liveKpiMap ? liveKpiMap.get(metricName) : '';
+    tableKpiContents = tableKpiContents.concat(createKpiTableRow(metricName, previewValue, liveValue));
+  }
+  tabKpis.innerHTML = tableKpiContents;
   return (div);  
 }
 
 
 
-function createScoreTableHeader(previewScore, liveScore) {
-  let header = '<tr><th>Metric</th><th>Preview</th>';
+function createTableHeader(item, previewScore, liveScore) {
+  let header = `<tr><th>${item}</th><th>Preview</th>`;
   if (liveScore) {
     header = header.concat('<th>Live</th>');
   }
   return header.concat('</tr>');
 }
+
 
 function createScoreTableRow(fName, previewValue, liveValue) {
   let backgroundColor = '';
@@ -98,6 +138,27 @@ function createScoreTableRow(fName, previewValue, liveValue) {
     }
     else if (diff < 0) {
       backgroundColor = `rgba(200,0,0,${diff * -1})`;
+    }
+  }
+  let row = `<tr style="background-color: ${backgroundColor}"><td>${fName}</td><td class="table_score_number_cell">${previewValue}</td>`;
+  if(liveValue) {
+    row = row.concat(`<td class="table_score_number_cell">${liveValue}</td>`);
+  }
+  return row.concat('</tr>');
+}
+
+function createKpiTableRow(fName, previewValue, liveValue) {
+  let backgroundColor = '';
+  if (liveValue) {
+    let diff = (((parseFloat(previewValue)) - (parseFloat(liveValue))) / 100).toFixed(2);            
+    if (diff > 0) {
+      diff = diff > 1 ? diff / 10 : diff;
+      backgroundColor = `rgba(0,200,0,${diff})`;
+    }
+    else if (diff < 0) {
+      diff = diff * -1;
+      diff = diff > 1 ? diff / 10 : diff;
+      backgroundColor = `rgba(200,0,0,${diff})`;
     }
   }
   let row = `<tr style="background-color: ${backgroundColor}"><td>${fName}</td><td class="table_score_number_cell">${previewValue}</td>`;
@@ -136,7 +197,10 @@ async function createAesthScoring() {
  
   // Get preview scoring
   const prevScoring = await getAestheticsScoring(window.location+"?aesthetics=disabled");      
+  
+  variantsDiv.appendChild(createKpiElement(prevScoring, liveScoring));  
   variantsDiv.appendChild(createScoreElement(prevScoring, liveScoring));  
+  
   return (div);
 }
 
